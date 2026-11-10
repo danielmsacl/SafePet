@@ -63,14 +63,19 @@ function escenario(historial = null) {
   };
 }
 
-test('sin Arduino no habilita botones; conectar solicita el estado', () => {
+test('permite enviar sin Arduino una vez conectado al broker, sin fingir confirmación', () => {
   const s = escenario();
   assert.equal(s.nodo('btn-led').disabled, true);
   s.conectar();
   assert.deepEqual(s.enviados, [{ topic: `${BASE_TOPIC}/consulta`, mensaje: 'consultar_estado' }]);
-  assert.equal(s.nodo('btn-led').disabled, true);
+  assert.equal(s.nodo('btn-led').disabled, false);
   s.recibir('led/estado', 'basura');
-  assert.equal(s.nodo('btn-led').disabled, true);
+  s.nodo('btn-led').click();
+  assert.equal(s.enviados.at(-1).mensaje, 'prender_led');
+  assert.equal(s.nodo('btn-led').attrs['aria-pressed'], 'false');
+  s.avanzar(7000);
+  s.nodo('btn-led').click();
+  assert.equal(s.enviados.at(-1).mensaje, 'apagar_led');
 });
 
 for (const nombre of ['led', 'ventilador']) {
@@ -103,7 +108,7 @@ for (const nombre of ['led', 'ventilador']) {
 test('timeout deja estado desconocido; consultar recupera sin repetir la orden', () => {
   const s = escenario(); s.conectar(); s.recibir('led/estado', 'led_apagado');
   s.nodo('btn-led').click(); s.avanzar(7000);
-  assert.equal(s.nodo('btn-led').disabled, true);
+  assert.equal(s.nodo('btn-led').disabled, false);
   assert.match(s.nodo('estado-led').textContent, /Sin confirmación/);
   s.nodo('btn-consultar').click();
   assert.equal(s.enviados.at(-1).mensaje, 'consultar_estado');
@@ -120,15 +125,15 @@ test('desconexión cancela orden pendiente y exige un estado nuevo al reconectar
   s.recibir('led/estado', 'led_prendido');
   assert.equal(s.nodo('btn-led').disabled, true);
   s.conectar();
-  assert.equal(s.nodo('btn-led').disabled, true);
+  assert.equal(s.nodo('btn-led').disabled, false);
   s.recibir('led/estado', 'led_apagado');
   assert.equal(s.nodo('btn-led').disabled, false);
 });
 
-test('Arduino silencioso bloquea controles aunque siga conectado el broker', () => {
+test('Arduino silencioso informa estado desconocido pero permite enviar órdenes', () => {
   const s = escenario(); s.conectar(); s.recibir('led/estado', 'led_apagado');
   s.avanzar(17000);
-  assert.equal(s.nodo('btn-led').disabled, true);
+  assert.equal(s.nodo('btn-led').disabled, false);
   assert.match(s.nodo('estado-led').textContent, /Arduino sin respuesta/);
 });
 
@@ -152,7 +157,7 @@ test('valida sensores, marca lectura antigua y muestra fallo DHT22', () => {
 test('un fallo de publicación no deja un botón aparentemente confirmado', () => {
   const s = escenario(); s.conectar(); s.recibir('led/estado', 'led_apagado');
   s.cliente.fallo = true; s.nodo('btn-led').click();
-  assert.equal(s.nodo('btn-led').disabled, true);
+  assert.equal(s.nodo('btn-led').disabled, false);
   assert.match(s.nodo('estado-led').textContent, /No se pudo enviar/);
 });
 

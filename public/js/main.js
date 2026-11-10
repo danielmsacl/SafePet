@@ -9,7 +9,7 @@ export function iniciarPanel({ cliente = MqttClient, doc = document, reloj = glo
   let ultimaLectura = null;
   const actuadores = ['led', 'ventilador'].map((nombre) => ({
     nombre, boton: elemento(`btn-${nombre}`), texto: elemento(`estado-${nombre}`),
-    estado: null, recibido: null, pendiente: null, timer: null,
+    estado: null, solicitado: false, recibido: null, pendiente: null, timer: null,
   }));
   function registrar(mensaje) {
     const hora = new Date(ahora()).toLocaleTimeString('es-CL');
@@ -18,9 +18,9 @@ export function iniciarPanel({ cliente = MqttClient, doc = document, reloj = glo
   }
   function dibujar(actuador) {
     const { boton, nombre, estado, pendiente } = actuador;
-    boton.disabled = !conectado || estado === null || pendiente !== null;
+    boton.disabled = !conectado || pendiente !== null;
     boton.textContent = pendiente !== null ? 'Esperando respuesta…'
-      : estado === null ? `Esperando ${nombre}…`
+      : estado === null ? `${actuador.solicitado ? 'Apagar' : 'Prender'} ${nombre}`
       : `${estado ? 'Apagar' : 'Prender'} ${nombre}`;
     boton.setAttribute('aria-pressed', String(estado === true));
     boton.classList.toggle('seleccionado', estado === true);
@@ -49,6 +49,7 @@ export function iniciarPanel({ cliente = MqttClient, doc = document, reloj = glo
       const nuevo = mensaje === `${nombre}_prendido`;
       const cambio = actuador.estado !== nuevo;
       const confirma = actuador.pendiente === nuevo;
+      if (confirma || actuador.pendiente === null) actuador.solicitado = nuevo;
       actuador.estado = nuevo;
       actuador.recibido = ahora();
       if (confirma) cancelar(actuador);
@@ -60,13 +61,14 @@ export function iniciarPanel({ cliente = MqttClient, doc = document, reloj = glo
     });
     boton.addEventListener('click', () => {
       if (boton.disabled) return;
-      const destino = !actuador.estado;
+      const destino = !(actuador.estado ?? actuador.solicitado);
       const mensaje = `${destino ? 'prender' : 'apagar'}_${nombre}`;
       actuador.pendiente = destino;
+      actuador.solicitado = destino;
       actuador.texto.textContent = 'Esperando confirmación del Arduino…';
       dibujar(actuador);
       actuador.timer = reloj.setTimeout(() => {
-        desconocido(actuador, 'Sin confirmación. Consulta el estado antes de reintentar.');
+        desconocido(actuador, 'Sin confirmación. Puedes enviar otra orden o consultar el estado.');
         registrar(`Sin confirmación: ${mensaje}. La orden pudo haberse ejecutado.`);
       }, TIEMPO_RESPUESTA_MS);
       const enviado = cliente.publicar(`${BASE_TOPIC}/${nombre}`, mensaje, () => {
@@ -109,7 +111,7 @@ export function iniciarPanel({ cliente = MqttClient, doc = document, reloj = glo
     elemento('conexion').textContent = mensaje;
     elemento('btn-consultar').disabled = !listo;
     actuadores.forEach((actuador) => desconocido(actuador,
-      listo ? 'Esperando estado del Arduino…' : 'Estado desconocido: MQTT desconectado.'));
+      listo ? 'Estado desconocido. Puedes enviar órdenes sin esperar al Arduino.' : 'Estado desconocido: MQTT desconectado.'));
     if (listo) pedirEstado();
     else {
       ultimaLectura = null;

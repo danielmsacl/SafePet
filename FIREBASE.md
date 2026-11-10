@@ -84,7 +84,8 @@ marcan **error: no guardado**; no se presentan como datos almacenados.
 
 ## Comprobar la integración real
 
-1. Esperar **Firebase conectado** y habilitación de los botones por el Arduino.
+1. Esperar **Firebase conectado** y conexión MQTT. Los botones no esperan al Arduino,
+   pero este debe estar conectado para ejecutar órdenes y producir eventos reales.
 2. Prender el LED: comprobar una fila LED/encendido y que pase a guardado.
 3. Apagarlo: comprobar otra fila LED/apagado.
 4. Pulsar Consultar estado varias veces: no deben aparecer eventos adicionales.
@@ -110,8 +111,9 @@ marcan **error: no guardado**; no se presentan como datos almacenados.
   recuperación automática de filas rechazadas.
 - MQTT QoS 0 y el broker público no garantizan entrega. Un cambio sin conexión,
   incluyendo apagado de protección, no queda automáticamente registrado.
-- El motor continúa sin controlador. Se envía **PWM 15/255** al encender y 0 al
-  apagar. El registro acredita esa orden aplicada a D6, no una velocidad medida.
+- El motor paso a paso usa ULN2003 en D8–D11, objetivo 15 RPM nominales.
+  Sus mensajes conservan el nombre `ventilador` por compatibilidad con la web.
+  El evento confirma activación del control, no una velocidad medida.
 
 ## Documentación oficial
 

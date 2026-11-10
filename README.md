@@ -58,11 +58,11 @@ programa entregado; si ya tienen otro cableado, modificar sus constantes.
 | --- | --- |
 | DHT22 VCC | 5V |
 | DHT22 GND | GND |
-| DHT22 DATA | D2 |
+| DHT22 DATA | D4 |
 | LED externo | D1 → resistencia de **1 kΩ** → ánodo; cátodo → GND |
 | LCD 16×2 I2C VCC / GND | 5V / GND, para un módulo de 5V |
 | LCD SDA / SCL | Pines **SDA / SCL** del conector de la placa (A4 / A5) |
-| Control de ventilador | D6: por ahora **sin motor conectado** |
+| ULN2003 IN1 / IN2 / IN3 / IN4 | D11 / D10 / D9 / D8, respectivamente |
 
 En un DHT22 suelto de cuatro patas normalmente se necesita una resistencia de
 10 kΩ entre DATA y VCC; algunos módulos ya la incluyen. Verificar las etiquetas
@@ -75,7 +75,8 @@ sensor o pantalla. Un DHT22 ausente genera un error de lectura, no bloquea los b
 Se conserva **D1**, usado por su programa original, en lugar de D7 propuesto
 antes. D1 también es TX de `Serial1`: no usar esa UART al mismo tiempo. El
 Monitor Serie USB con `Serial` sigue disponible. El código original no define
-el DHT22 ni el motor: **D2 y D6 son pines propuestos**, deben coincidir con su montaje.
+el DHT22 ni el motor. El montaje indicado después usa **D4 para DHT22 y D8–D11
+para motor**. El control anterior de D6 ya no se utiliza.
 
 El LCD conserva la dirección **0x27** del código original (`LCD_ADDRESS`) y
 detecta la configuración de adaptadores compatibles PCF8574/MCP23008.
@@ -88,23 +89,26 @@ La primera fila muestra `SAFEPET ONLINE`, `SAFEPET SIN WIFI` o `SAFEPET SIN MQTT
 la segunda, temperatura y humedad (o `Error DHT22`). La pantalla se actualiza
 sin borrar todo el LCD en cada vuelta del programa.
 
-### Motor pendiente de controlador
+### Motor paso a paso con ULN2003
 
-**No conectar el motor a D6 ni alimentarlo desde ese pin.** Todavía falta conocer
-el voltaje y la corriente del motor para seleccionar un controlador de motor o
-una etapa con MOSFET/transistor adecuada, protección y alimentación apropiada.
-Para un motor DC de escobillas con transistor se necesita protección contra la
-tensión inductiva (habitualmente un diodo de rueda libre).
+El diagrama aportado corresponde a un montaje tipo 28BYJ-48 con ULN2003.
+Verificar las etiquetas: el código usa IN1=D11, IN2=D10, IN3=D9, IN4=D8.
+Si el montaje tiene IN1=D8, IN2=D9, IN3=D10, IN4=D11, cambiar únicamente
+`MOTOR_PINS` a `{8, 9, 10, 11}`. No basta con saber el rango: importa el orden.
 
-La señal de D6 usa PWM de 8 bits: **15 de 255** al encender y **0** al apagar.
-Esto equivale aproximadamente a 5,9 % de ciclo útil, no a 15 % ni a una velocidad
-medida. Con ese valor bajo, el motor podría no arrancar. Está definido en `FAN_PWM`.
-Se necesita un controlador compatible con PWM; un relé mecánico no sirve para
-regular velocidad así. Un módulo activo en bajo requerirá adaptar la lógica. El driver debe
-mantener el motor apagado también durante el reinicio de la placa.
-Por ahora comprobar `Salida D6 PWM: 15` / `Salida D6 PWM: 0` en el Monitor Serie;
-opcionalmente usar **otro LED con resistencia de 1 kΩ** en D6 para visualizarla.
-`ventilador_prendido` confirma la salida del programa, no el giro de un motor.
+La velocidad solicitada se interpreta ahora como **15 RPM nominales**, con
+2048 pasos completos por vuelta. No es PWM 15/255. La secuencia se genera sin
+bloquear una vuelta completa y no requiere otra biblioteca. Las operaciones
+de red, LCD y DHT pueden introducir pausas: no se garantiza velocidad exacta.
+Si vibra o pierde pasos, verificar primero el orden, alimentación y carga;
+reducir `MOTOR_RPM` a 5 para la prueba inicial si es necesario.
+
+Para el motor de 5 V mostrado, alimentar el ULN2003 con fuente externa regulada
+de 5 V y unir su GND con GND del Arduino. Confirmar el voltaje en la etiqueta
+del motor; existen variantes de 12 V. El motor se conecta al módulo, nunca
+directamente a los pines. Al apagar se desactivan las cuatro bobinas, por lo
+que no se mantiene el eje bloqueado. La confirmación MQTT indica control
+activado, no velocidad o movimiento físicamente comprobados.
 
 ## 3. Mensajes EXACTOS
 
@@ -149,15 +153,15 @@ Si agregan otra placa, usar otro prefijo y otro `mqttClient.setId(...)`.
    Para una prueba local también se puede usar la extensión Live Server de VS Code;
    no abrir `index.html` con `file://`, porque usa módulos JavaScript.
 3. Abrir la web. Primero conecta con MQTT, se suscribe y consulta el estado.
-   **MQTT conectado no significa Arduino conectado:** esperar la confirmación de
-   sus salidas y que los botones se habiliten.
+   Los botones se habilitan al conectar con MQTT, sin esperar al Arduino.
+   El estado real solo se confirma cuando llega su respuesta.
 4. Pulsar **Prender led**. Debe mostrar `Esperando respuesta…`, prender el LED y
    luego mostrar `Apagar led` y el estado confirmado. Repetir para apagar.
-5. Probar **Prender ventilador** y **Apagar ventilador**, con el motor desconectado.
-   Comprobar el Monitor Serie o el LED de prueba de D6.
+5. Comprobar el orden IN1–IN4 y probar Prender/Apagar ventilador: debe girar
+   el paso a paso y desactivar sus bobinas al apagar.
 6. Temperatura y humedad deben aparecer en web y LCD cada diez segundos.
-7. Desconectar el Arduino: la web debe bloquear sus controles después de unos
-   16 segundos sin estados nuevos, aunque el broker siga conectado.
+7. Desconectar el Arduino: después de unos 16 segundos la web indica estado
+   desconocido, pero permite enviar nuevas órdenes si MQTT sigue conectado.
 8. Reconectar el Arduino: arranca con ambas salidas apagadas y la web debe
    recuperar su estado. Recargar la web también debe recuperar el estado actual.
 

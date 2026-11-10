@@ -23,7 +23,7 @@
           <p id="estado-ventilador" role="status">Esperando estado del Arduino…</p>
         </div>
       </div>
-      <p class="nota">Prueba de ventilador: salida D6 con PWM 15 de 255. Mantén el motor desconectado hasta instalar su controlador. La confirmación indica el estado de la salida, no que el motor esté girando.</p>
+      <p class="nota">Puedes enviar órdenes al conectar con MQTT, sin esperar al Arduino. Motor paso a paso con ULN2003 en D8–D11: objetivo 15 RPM. La confirmación indica que se activó el control; no mide el giro real.</p>
       <button id="btn-consultar" type="button" disabled>Consultar estado</button>
     </section>
     <section aria-labelledby="titulo-ambiente">

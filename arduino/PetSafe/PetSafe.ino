@@ -1,8 +1,7 @@
 /* PetSafe: Arduino publica MQTT; la web registra eventos y lecturas en Firebase.
    Placa: Arduino UNO R4 WiFi. Ver README.md para conexiones y bibliotecas.
    Adaptado al montaje del codigo original: LED D1, LCD I2C 0x27.
-   D2 (DHT22) y D6 (control motor) son asignaciones propuestas.
-   D6 es SOLO una señal de control. NO conectar un motor directamente.
+   DHT22 D4. Motor 28BYJ-48 con ULN2003, cuatro entradas en D8-D11.
 */
 #include <WiFiS3.h>
 #include <ArduinoMqttClient.h>
@@ -24,10 +23,18 @@ const char TOPIC_SENSOR_STATE[] = BASE_TOPIC "/sensor/estado";
 // Eventos de cambio: separados de los estados periódicos y las consultas.
 const char TOPIC_EVENTS[] = BASE_TOPIC "/eventos";
 
-const int DHT_PIN = 2;
+const int DHT_PIN = 4;
 const int LED_PIN = 1; // D1/TX, como en su codigo original. No usar Serial1 a la vez.
-const int FAN_PIN = 6;
-const int FAN_PWM = 15; // Escala de 8 bits: 0..255. No significa 15 %.
+// Orden IN1, IN2, IN3, IN4 del ULN2003: verificar etiquetas del modulo.
+const uint8_t MOTOR_PINS[4] = {11, 10, 9, 8};
+const unsigned long MOTOR_RPM = 15;
+const unsigned long PASOS_POR_VUELTA = 2048; // Nominal, paso completo.
+const unsigned long INTERVALO_PASO_US = 60000000UL / (PASOS_POR_VUELTA * MOTOR_RPM);
+const uint8_t SECUENCIA[4][4] = {
+  {1, 1, 0, 0}, {0, 1, 1, 0}, {0, 0, 1, 1}, {1, 0, 0, 1}
+};
+uint8_t pasoMotor = 0;
+unsigned long ultimoPaso = 0;
 const uint8_t LCD_ADDRESS = 0x27;
 // Cambiar a false para probar sin LCD (la biblioteca igual debe instalarse).
 const bool USAR_LCD = true;
@@ -67,12 +74,26 @@ void publicarEstados() {
   publicar(TOPIC_FAN_STATE, ventiladorEncendido ? "ventilador_prendido" : "ventilador_apagado");
 }
 
+void liberarMotor() {
+  for (uint8_t i = 0; i < 4; i++) digitalWrite(MOTOR_PINS[i], LOW);
+}
+
+void moverMotor() {
+  if (!ventiladorEncendido) return;
+  const unsigned long ahora = micros();
+  if (ahora - ultimoPaso < INTERVALO_PASO_US) return;
+  ultimoPaso = ahora;
+  for (uint8_t i = 0; i < 4; i++) digitalWrite(MOTOR_PINS[i], SECUENCIA[pasoMotor][i]);
+  pasoMotor = (pasoMotor + 1) % 4;
+  // Un paso por llamada, sin esperar vueltas completas ni recuperar pasos en ráfaga.
+}
+
 void apagarSalidas() {
   ledEncendido = false;
   ventiladorEncendido = false;
   digitalWrite(LED_PIN, LOW);
   digitalWrite(LED_BUILTIN, LOW);
-  analogWrite(FAN_PIN, 0);
+  liberarMotor();
 }
 
 void escribirLineaLCD(uint8_t fila, String texto) {
@@ -128,10 +149,14 @@ void recibirMensaje(int longitud) {
   } else if (topic == TOPIC_FAN && (mensaje == "prender_ventilador" || mensaje == "apagar_ventilador")) {
     const bool cambio = ventiladorEncendido != (mensaje == "prender_ventilador");
     ventiladorEncendido = mensaje == "prender_ventilador";
-    analogWrite(FAN_PIN, ventiladorEncendido ? FAN_PWM : 0);
+    if (!ventiladorEncendido) liberarMotor();
+    else if (cambio) {
+      ultimoPaso = micros() - INTERVALO_PASO_US;
+      moverMotor();
+    }
     publicar(TOPIC_FAN_STATE, ventiladorEncendido ? "ventilador_prendido" : "ventilador_apagado");
     if (cambio) publicar(TOPIC_EVENTS, ventiladorEncendido ? "ventilador_prendido" : "ventilador_apagado");
-    Serial.print("Salida D6 PWM: "); Serial.println(ventiladorEncendido ? FAN_PWM : 0);
+    Serial.println(ventiladorEncendido ? "Motor activo: objetivo 15 RPM" : "Motor detenido: bobinas desactivadas");
   } else if (topic == TOPIC_QUERY && mensaje == "consultar_estado") {
     publicarEstados();
   }
@@ -164,8 +189,9 @@ void setup() {
   // No esperar al monitor serie: también debe funcionar alimentado sin PC.
   digitalWrite(LED_PIN, LOW); pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_BUILTIN, LOW); pinMode(LED_BUILTIN, OUTPUT);
-  digitalWrite(FAN_PIN, LOW); pinMode(FAN_PIN, OUTPUT);
-  analogWriteResolution(8);
+  for (uint8_t i = 0; i < 4; i++) {
+    digitalWrite(MOTOR_PINS[i], LOW); pinMode(MOTOR_PINS[i], OUTPUT);
+  }
   apagarSalidas();
   dht.begin();
   if (USAR_LCD) {
@@ -183,6 +209,7 @@ void setup() {
 void loop() {
   // Priorizar el apagado al detectar una pérdida de conexión.
   if (WiFi.status() != WL_CONNECTED || !mqttClient.connected()) apagarSalidas();
+  moverMotor();
   // Una medición nueva cada 10 segundos; no repetir datos antiguos para guardar.
   if (millis() - ultimaLectura >= INTERVALO_DATOS) {
     ultimaLectura = millis();
@@ -232,4 +259,5 @@ void loop() {
   }
   intentoMqtt = false;
   mqttClient.poll();
+  moverMotor();
 }
