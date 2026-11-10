@@ -1,0 +1,26 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "usuarios": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        "registros": {
+          ".indexOn": ["fecha"],
+          "$id": {
+            ".write": "auth != null && auth.uid === $uid && !data.exists() && newData.exists()",
+            ".validate": "newData.hasChildren(['fecha', 'recibidaEn', 'sensor', 'accion', 'dispositivo']) && (((newData.child('sensor').val() === 'LED' || newData.child('sensor').val() === 'ventilador') && (newData.child('accion').val() === 'encendido' || newData.child('accion').val() === 'apagado') && !newData.hasChild('temperatura') && !newData.hasChild('humedad')) || (newData.child('sensor').val() === 'DHT22' && newData.child('accion').val() === 'lectura' && newData.hasChildren(['temperatura', 'humedad'])))",
+            "fecha": { ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() <= now" },
+            "recibidaEn": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+            "sensor": { ".validate": "newData.isString()" },
+            "accion": { ".validate": "newData.isString()" },
+            "dispositivo": { ".validate": "newData.val() === 'safepet/danielmsacl/uno-r4-01'" },
+            "temperatura": { ".validate": "newData.isNumber() && newData.val() >= -40 && newData.val() <= 80" },
+            "humedad": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100" },
+            "$otro": { ".validate": false }
+          }
+        }
+      }
+    }
+  }
+}

@@ -3,15 +3,56 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Prender LED</title>
-  <link rel="stylesheet" href="public/css/styles">
+  <title>PetSafe · Prueba del dispositivo</title>
+  <link rel="stylesheet" href="public/css/styles.css">
 </head>
 <body>
-  <main class="botones" aria-label="Botones">
-    <button id="btnLed" type="button" aria-pressed="false">Prender LED</button>
+  <main>
+    <h1>PetSafe</h1>
+    <p>Prueba de conexión con Arduino UNO R4 WiFi</p>
+    <p id="conexion" role="status">Conectando con MQTT…</p>
+    <section aria-labelledby="titulo-controles">
+      <h2 id="titulo-controles">Controles</h2>
+      <div class="botones">
+        <div>
+          <button id="btn-led" type="button" aria-pressed="false" disabled>Esperando led…</button>
+          <p id="estado-led" role="status">Esperando estado del Arduino…</p>
+        </div>
+        <div>
+          <button id="btn-ventilador" type="button" aria-pressed="false" disabled>Esperando ventilador…</button>
+          <p id="estado-ventilador" role="status">Esperando estado del Arduino…</p>
+        </div>
+      </div>
+      <p class="nota">Prueba de ventilador: salida D6 con PWM 15 de 255. Mantén el motor desconectado hasta instalar su controlador. La confirmación indica el estado de la salida, no que el motor esté girando.</p>
+      <button id="btn-consultar" type="button" disabled>Consultar estado</button>
+    </section>
+    <section aria-labelledby="titulo-ambiente">
+      <h2 id="titulo-ambiente">Ambiente</h2>
+      <p>Temperatura: <strong id="temperatura">—</strong></p>
+      <p>Humedad: <strong id="humedad">—</strong></p>
+      <p id="estado-sensor" role="status">Esperando primera lectura del DHT22…</p>
+    </section>
+    <section aria-labelledby="titulo-historial">
+      <h2 id="titulo-historial">Historial</h2>
+      <p id="estado-base-datos" role="status">Preparando historial…</p>
+      <p>Las mediciones llegan cada 10 segundos. Se muestra la hora de Chile: fecha del servidor al guardar, o fecha de recepción mientras está pendiente.</p>
+      <p id="resumen-guardado" role="status">Esperando registros.</p>
+      <div class="tabla-historial">
+        <table aria-labelledby="titulo-historial">
+          <thead><tr><th scope="col">Fecha</th><th scope="col">Sensor</th><th scope="col">Acción</th></tr></thead>
+          <tbody id="filas-historial"></tbody>
+        </table>
+      </div>
+    </section>
+    <section aria-labelledby="titulo-registro">
+      <h2 id="titulo-registro">Actividad de esta sesión</h2>
+      <p>Diagnóstico de conexión. Este registro temporal se borra al recargar.</p>
+      <pre id="registro" aria-label="Mensajes recientes"></pre>
+    </section>
+    <noscript>Activa JavaScript para conectar con el Arduino.</noscript>
   </main>
 
-  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <script src="https://unpkg.com/mqtt@5.10.4/dist/mqtt.min.js"></script>
   <script type="module" src="public/js/main.js"></script>
 </body>
 </html>
