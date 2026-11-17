@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
-import { MqttClient } from '../public/js/model/mqtt-client.js';
+import { MqttClient } from '../public/js/services/mqtt-client.js';
 
 test('suscribe antes de habilitar envíos, restaura suscripciones y descarta retain', () => {
   const transporte = new EventEmitter();

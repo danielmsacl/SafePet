@@ -1,26 +1,207 @@
+/* PetSafe · colores del logo. El turquesa de marca (#18CDBE) se usa en rellenos y bordes,
+   no como texto sobre fondo claro (contraste insuficiente); para texto se usa --acento-texto. */
+:root {
+  --azul: #082b40;
+  --turquesa: #18cdbe;
+  --fondo: #f3f7f9;
+  --texto: #173544;
+  --texto-suave: #4a5e6a;
+  --superficie: #ffffff;
+  --borde: #d3e0e6;
+  --acento-texto: #0a6e67;
+  --ok: #0a6e67;      --ok-fondo: #e3f6f4;
+  --espera: #4a5e6a;  --espera-fondo: #eaf0f3;
+  --aviso: #7a4d00;   --aviso-fondo: #fff3d6;
+  --error: #a3231a;   --error-fondo: #fdecea;
+  --radio: 10px;
+  color-scheme: light;
+}
+
 * { box-sizing: border-box; }
+
 body {
   margin: 0;
-  padding: 24px;
-  color: #152b38;
-  background: #e8eff2 url('../descarga.jpg') center / cover fixed;
-  font-family: Arial, sans-serif;
+  color: var(--texto);
+  background: var(--fondo);
+  font-family: "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 1rem;
   line-height: 1.5;
 }
-main { max-width: 780px; margin: auto; padding: 24px; background: #fffffff5; border-radius: 12px; }
-h1 { margin-top: 0; }
-h2 { font-size: 1.2rem; }
-section { margin-top: 24px; border-top: 1px solid #c8d5db; padding-top: 12px; }
-.botones { display: flex; flex-wrap: wrap; gap: 20px; }
-.botones > div { flex: 1 1 240px; }
-button { padding: 12px 20px; border: 2px solid #263b58; border-radius: 8px; background: white; color: #263b58; font: inherit; cursor: pointer; }
-button.seleccionado { background: #263b58; color: white; }
-button:disabled { opacity: .6; cursor: not-allowed; }
-button:focus-visible { outline: 3px solid #b65d00; outline-offset: 3px; }
-.nota { background: #fff3d8; padding: 12px; border-radius: 6px; }
-pre { min-height: 60px; max-height: 260px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: .85rem; }
-.tabla-historial { max-height: 360px; overflow: auto; }
-table { width: 100%; border-collapse: collapse; text-align: left; font-size: .9rem; }
-th, td { padding: 10px; border-bottom: 1px solid #c8d5db; vertical-align: top; }
-th { background: #e8eff2; position: sticky; top: 0; }
-@media (max-width: 480px) { body { padding: 12px; } main { padding: 16px; } }
+
+h1, h2, h3 { line-height: 1.2; margin: 0; }
+h2 { font-size: 1.25rem; color: var(--azul); margin-bottom: 16px; }
+h3 { font-size: 1.05rem; margin-bottom: 8px; }
+p { margin: 0 0 12px; }
+
+.solo-lectores {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+.saltar {
+  position: absolute; left: 12px; top: -48px; z-index: 10;
+  padding: 10px 14px; border-radius: 6px; background: var(--superficie); color: var(--azul); font-weight: 600;
+}
+.saltar:focus { top: 12px; }
+
+:focus-visible { outline: 3px solid var(--acento-texto); outline-offset: 3px; }
+
+/* Cabecera compacta */
+.cabecera {
+  background: var(--azul);
+  color: #ffffff;
+  border-bottom: 4px solid var(--turquesa);
+}
+.cabecera-interior {
+  max-width: 1120px; margin: 0 auto; padding: 16px 24px;
+  display: flex; align-items: center; gap: 16px;
+}
+.logo { width: 64px; height: 64px; flex: none; }
+.cabecera h1 { font-size: 1.75rem; font-weight: 700; letter-spacing: .01em; }
+.cabecera p { margin: 4px 0 0; color: #c9dce4; max-width: 60ch; }
+
+main { max-width: 1120px; margin: 0 auto; padding: 24px; display: grid; gap: 24px; }
+
+/* Indicadores de conexión: tres servicios distintos, cada uno con su propio estado */
+.indicadores {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+.indicador {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 12px 16px; background: var(--superficie);
+  border: 1px solid var(--borde); border-left: 6px solid var(--espera); border-radius: var(--radio);
+}
+.indicador-nombre { font-weight: 700; color: var(--azul); }
+.indicador-texto { font-weight: 500; }
+.indicador-detalle { font-size: .875rem; color: var(--texto-suave); font-variant-numeric: tabular-nums; }
+.indicador[data-estado="ok"] { border-left-color: var(--turquesa); }
+.indicador[data-estado="ok"] .indicador-texto { color: var(--ok); }
+.indicador[data-estado="aviso"] { border-left-color: #d99a1e; }
+.indicador[data-estado="aviso"] .indicador-texto { color: var(--aviso); }
+.indicador[data-estado="error"] { border-left-color: var(--error); }
+.indicador[data-estado="error"] .indicador-texto { color: var(--error); }
+.indicador[data-estado="desconocido"] { border-left-color: #9fb2bc; }
+
+/* Paneles */
+.tablero { display: grid; gap: 24px; }
+@media (min-width: 860px) { .tablero { grid-template-columns: 1fr 1fr; align-items: start; } }
+
+.panel {
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  padding: 24px;
+  min-width: 0;
+}
+
+.nota { color: var(--texto-suave); font-size: .9375rem; max-width: 70ch; }
+
+/* Lecturas: lo más importante de la página */
+.lecturas {
+  margin: 0 0 16px; display: grid; gap: 16px; grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.lectura {
+  display: flex; flex-direction: column; justify-content: space-between;
+  padding: 4px 0 4px 16px; border-left: 4px solid var(--turquesa);
+}
+.lectura dt { color: var(--texto-suave); font-weight: 500; }
+.lectura dd {
+  margin: 4px 0 0; color: var(--azul);
+  font-size: clamp(2.25rem, 7vw, 3.25rem); font-weight: 700; line-height: 1.1;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+/* Datos antiguos o sin datos: los valores pierden énfasis; el texto de estado explica el motivo. */
+.lecturas:not([data-estado="ok"]) .lectura { border-left-color: var(--borde); }
+.lecturas[data-estado="aviso"] dd { color: var(--texto-suave); }
+
+/* Mensajes de estado (sensor y actuadores) */
+.estado {
+  display: block; padding: 8px 12px; border-radius: 6px; font-weight: 500;
+  background: var(--espera-fondo); color: var(--espera);
+}
+.estado[data-estado="ok"], .estado[data-estado="encendido"] { background: var(--ok-fondo); color: var(--ok); }
+.estado[data-estado="apagado"] { background: var(--espera-fondo); color: var(--texto); }
+.estado[data-estado="aviso"] { background: var(--aviso-fondo); color: var(--aviso); }
+.estado[data-estado="error"] { background: var(--error-fondo); color: var(--error); }
+
+/* Controles */
+.controles { display: grid; gap: 12px; margin-bottom: 16px; }
+.control {
+  display: grid; gap: 10px 16px; align-items: center;
+  padding: 16px; border: 1px solid var(--borde); border-radius: 8px;
+}
+.control h3, .control .nota { grid-column: 1 / -1; margin: 0; }
+.control .estado { margin: 0; }
+.control .nota { font-size: .875rem; }
+@media (min-width: 480px) { .control { grid-template-columns: minmax(0, 1fr) 11.5rem; } }
+
+button {
+  min-height: 48px; padding: 10px 20px;
+  border: 2px solid var(--azul); border-radius: 8px;
+  background: var(--azul); color: #ffffff;
+  font: inherit; font-weight: 600; cursor: pointer;
+}
+button:hover:not(:disabled) { background: #0f3d59; }
+button.seleccionado { background: var(--turquesa); border-color: var(--turquesa); color: var(--azul); }
+button.seleccionado:hover:not(:disabled) { background: #3fd9cc; }
+button.secundario { background: var(--superficie); color: var(--azul); }
+button.secundario:hover:not(:disabled) { background: var(--fondo); }
+button:disabled { background: #c9d5db; border-color: #c9d5db; color: var(--texto-suave); cursor: not-allowed; }
+
+/* Historial */
+.herramientas { display: flex; flex-wrap: wrap; align-items: end; gap: 8px 16px; margin-bottom: 12px; }
+.campo { display: flex; flex-direction: column; gap: 4px; }
+.campo label { font-weight: 600; }
+select {
+  min-height: 44px; min-width: 180px; padding: 8px 12px;
+  border: 1px solid #8fa5b0; border-radius: 8px; background: var(--superficie); color: var(--texto); font: inherit;
+}
+.ayuda { margin: 0; color: var(--texto-suave); font-size: .875rem; flex: 1 1 260px; }
+
+.tabla-historial { max-height: 420px; overflow: auto; border: 1px solid var(--borde); border-radius: 8px; }
+table { width: 100%; border-collapse: collapse; text-align: left; font-size: .9375rem; }
+th, td { padding: 10px 12px; border-bottom: 1px solid var(--borde); vertical-align: top; }
+th { background: #e8eff2; color: var(--azul); position: sticky; top: 0; }
+td:first-child { font-variant-numeric: tabular-nums; }
+.fecha-dia, .fecha-hora { white-space: nowrap; }
+td.vacio { color: var(--texto-suave); text-align: center; padding: 24px 12px; white-space: normal; }
+tbody tr:last-child td { border-bottom: 0; }
+
+.guardado {
+  display: inline-block; margin-left: 4px; padding: 0 8px; border-radius: 999px;
+  font-size: .8125rem; font-weight: 600; white-space: nowrap;
+  background: var(--espera-fondo); color: var(--espera);
+}
+.guardado[data-estado="guardado"] { background: var(--ok-fondo); color: var(--ok); }
+.guardado[data-estado="pendiente"] { background: var(--aviso-fondo); color: var(--aviso); }
+.guardado[data-estado="error"] { background: var(--error-fondo); color: var(--error); }
+.guardado[data-estado="sin_configurar"] { background: var(--aviso-fondo); color: var(--aviso); }
+
+/* Diagnóstico: detalle técnico, cerrado por defecto */
+.diagnostico summary { cursor: pointer; font-weight: 700; color: var(--azul); min-height: 32px; }
+.diagnostico[open] summary { margin-bottom: 12px; }
+pre {
+  margin: 0; min-height: 60px; max-height: 260px; overflow: auto; padding: 12px;
+  background: var(--fondo); border-radius: 6px;
+  white-space: pre-wrap; overflow-wrap: anywhere; font-size: .85rem;
+}
+
+.pie { max-width: 1120px; margin: 0 auto; padding: 0 24px 32px; color: var(--texto-suave); font-size: .875rem; }
+
+@media (max-width: 600px) {
+  .cabecera-interior { padding: 12px 16px; gap: 12px; }
+  .logo { width: 48px; height: 48px; }
+  .cabecera h1 { font-size: 1.5rem; }
+  .cabecera p { font-size: .9375rem; }
+  main { padding: 16px; gap: 16px; }
+  .panel { padding: 16px; }
+  .pie { padding: 0 16px 24px; }
+  th, td { padding: 8px; }
+  .fecha-hora { display: block; }
+  button { width: 100%; }
+}
+@media (max-width: 360px) { .lecturas { grid-template-columns: 1fr; } }
+
+h1, h2, h3 { text-wrap: balance; }
+button, select, summary, a { touch-action: manipulation; }

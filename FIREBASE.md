@@ -1,7 +1,7 @@
 # Activar el historial en Firebase Realtime Database
 
 La configuración web del proyecto **petsafe-27bcf** ya está incorporada en
-`public/js/firebase-config.js`. Falta comprobar en el proyecto real que están
+`public/js/config/firebase.js`. Falta comprobar en el proyecto real que están
 activados el acceso anónimo y las reglas indicadas, y verificar lectura/escritura.
 La configuración por sí sola no demuestra que Firebase haya aceptado un registro.
 Si se cambia la configuración a `null`, la web muestra una vista temporal marcada
@@ -19,7 +19,7 @@ Si se cambia la configuración a `null`, la web muestra una vista temporal marca
    `firebase/database.rules.json` y publicar esas reglas. No usar lectura/escritura
    pública (`true`). Las reglas restringen cada historial al UID autenticado.
 6. En configuración del proyecto → aplicación web, copiar el objeto
-   `firebaseConfig`. En `public/js/firebase-config.js`, reemplazar `null` por ese
+   `firebaseConfig`. En `public/js/config/firebase.js`, reemplazar `null` por ese
    objeto. Incluir `databaseURL` con la URL copiada de Realtime Database:
 
    ```js
@@ -84,7 +84,7 @@ marcan **error: no guardado**; no se presentan como datos almacenados.
 
 ## Comprobar la integración real
 
-1. Esperar **Firebase conectado** y conexión MQTT. Los botones no esperan al Arduino,
+1. Esperar el indicador **Firebase** en "Conexión activa" y la conexión con el broker. Los botones no esperan al Arduino,
    pero este debe estar conectado para ejecutar órdenes y producir eventos reales.
 2. Prender el LED: comprobar una fila LED/encendido y que pase a guardado.
 3. Apagarlo: comprobar otra fila LED/apagado.

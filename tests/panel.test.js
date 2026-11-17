@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { iniciarPanel } from '../public/js/main.js';
-import { BASE_TOPIC } from '../public/js/config.js';
+import { BASE_TOPIC } from '../public/js/config/dispositivo.js';
 
 function escenario(historial = null) {
   let tiempo = 0;
@@ -178,4 +178,51 @@ test('guarda eventos y mediciones recibidos, nunca clics, consultas ni estados p
   assert.deepEqual(mediciones, [{ temperatura: 24.5, humedad: 62 }]);
   s.conectar(false); s.recibir('eventos', 'led_apagado');
   assert.equal(eventos.length, 1);
+});
+
+test('indicador del Arduino es independiente de la conexión con el broker', () => {
+  const s = escenario();
+  assert.equal(s.nodo('indicador-dispositivo').attrs['data-estado'], 'desconocido');
+  s.conectar();
+  assert.equal(s.nodo('indicador-mqtt').attrs['data-estado'], 'ok');
+  assert.equal(s.nodo('indicador-dispositivo').attrs['data-estado'], 'espera'); // broker sí, Arduino aún no
+  assert.match(s.nodo('estado-dispositivo').textContent, /Sin mensajes del Arduino/);
+  s.recibir('sensores', '{"temperatura":"x"}'); // un mensaje inválido no prueba contacto
+  assert.equal(s.nodo('indicador-dispositivo').attrs['data-estado'], 'espera');
+  s.recibir('led/estado', 'led_apagado');
+  assert.equal(s.nodo('indicador-dispositivo').attrs['data-estado'], 'ok');
+  assert.match(s.nodo('contacto-dispositivo').textContent, /Último mensaje/);
+  s.avanzar(17000);
+  assert.equal(s.nodo('indicador-dispositivo').attrs['data-estado'], 'aviso');
+  assert.equal(s.nodo('btn-led').disabled, false); // silencio del Arduino no bloquea órdenes
+  s.conectar(false);
+  assert.equal(s.nodo('indicador-dispositivo').attrs['data-estado'], 'desconocido');
+  assert.equal(s.nodo('indicador-mqtt').attrs['data-estado'], 'error');
+});
+
+test('orden enviada, control confirmado y estado periódico se distinguen en la vista', () => {
+  const s = escenario(); s.conectar(); s.recibir('ventilador/estado', 'ventilador_apagado');
+  assert.equal(s.nodo('estado-ventilador').attrs['data-estado'], 'apagado');
+  s.nodo('btn-ventilador').click();
+  assert.equal(s.nodo('estado-ventilador').attrs['data-estado'], 'espera');
+  assert.match(s.nodo('estado-ventilador').textContent, /Orden enviada/);
+  assert.equal(s.nodo('btn-ventilador').textContent, 'Esperando respuesta…');
+  s.recibir('ventilador/estado', 'ventilador_prendido');
+  assert.equal(s.nodo('estado-ventilador').attrs['data-estado'], 'encendido');
+  assert.match(s.nodo('estado-ventilador').textContent, /confirmado por Arduino/);
+  assert.equal(s.nodo('btn-ventilador').textContent, 'Apagar motor');
+  s.avanzar(7000);
+  assert.equal(s.nodo('estado-ventilador').attrs['data-estado'], 'encendido'); // timeout cancelado
+});
+
+test('lectura antigua conserva valores pero cambia su estado; sin conexión no muestra valores', () => {
+  const s = escenario(); s.conectar();
+  s.recibir('sensores', '{"temperatura":21.04,"humedad":40}');
+  assert.equal(s.nodo('lecturas').attrs['data-estado'], 'ok');
+  s.avanzar(17000);
+  assert.equal(s.nodo('lecturas').attrs['data-estado'], 'aviso');
+  assert.equal(s.nodo('temperatura').textContent, '21.0 °C');
+  s.conectar(false);
+  assert.equal(s.nodo('temperatura').textContent, '—');
+  assert.equal(s.nodo('lecturas').attrs['data-estado'], 'desconocido');
 });

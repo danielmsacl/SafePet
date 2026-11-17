@@ -3,54 +3,119 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>PetSafe · Prueba del dispositivo</title>
+  <meta name="description" content="PetSafe: monitoreo de temperatura y humedad y control del LED y del motor de un Arduino UNO R4 WiFi.">
+  <meta name="theme-color" content="#082B40">
+  <title>PetSafe · Monitoreo y control</title>
+  <link rel="icon" type="image/png" href="public/img/petsafe-icono-64.png">
+  <link rel="preconnect" href="https://unpkg.com">
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
   <link rel="stylesheet" href="public/css/styles.css">
 </head>
 <body>
-  <main>
-    <h1>PetSafe</h1>
-    <p>Prueba de conexión con Arduino UNO R4 WiFi</p>
-    <p id="conexion" role="status">Conectando con MQTT…</p>
-    <section aria-labelledby="titulo-controles">
-      <h2 id="titulo-controles">Controles</h2>
-      <div class="botones">
-        <div>
-          <button id="btn-led" type="button" aria-pressed="false" disabled>Esperando led…</button>
-          <p id="estado-led" role="status">Esperando estado del Arduino…</p>
-        </div>
-        <div>
-          <button id="btn-ventilador" type="button" aria-pressed="false" disabled>Esperando ventilador…</button>
-          <p id="estado-ventilador" role="status">Esperando estado del Arduino…</p>
-        </div>
+  <a class="saltar" href="#contenido">Ir al contenido</a>
+  <header class="cabecera">
+    <div class="cabecera-interior">
+      <img class="logo" src="public/img/petsafe-logo.webp" width="64" height="64" alt="">
+      <div>
+        <h1 translate="no">PetSafe</h1>
+        <p>Temperatura y humedad del ambiente, y control del LED y del motor del Arduino UNO R4 WiFi.</p>
       </div>
-      <p class="nota">Puedes enviar órdenes al conectar con MQTT, sin esperar al Arduino. Motor paso a paso con ULN2003 en D8–D11: objetivo 15 RPM. La confirmación indica que se activó el control; no mide el giro real.</p>
-      <button id="btn-consultar" type="button" disabled>Consultar estado</button>
+    </div>
+  </header>
+
+  <main id="contenido">
+    <section class="conexiones" aria-labelledby="titulo-conexiones">
+      <h2 id="titulo-conexiones" class="solo-lectores">Estado de las conexiones</h2>
+      <ul class="indicadores">
+        <li class="indicador" id="indicador-mqtt" data-estado="espera">
+          <span class="indicador-nombre">Broker MQTT</span>
+          <span id="conexion" class="indicador-texto" role="status">Conectando con MQTT…</span>
+        </li>
+        <li class="indicador" id="indicador-dispositivo" data-estado="espera">
+          <span class="indicador-nombre">Arduino</span>
+          <span id="estado-dispositivo" class="indicador-texto" role="status">Esperando conexión con el broker.</span>
+          <span id="contacto-dispositivo" class="indicador-detalle"></span>
+        </li>
+        <li class="indicador" id="indicador-base" data-estado="espera">
+          <span class="indicador-nombre">Firebase</span>
+          <span id="estado-base-datos" class="indicador-texto" role="status">Preparando historial…</span>
+        </li>
+      </ul>
     </section>
-    <section aria-labelledby="titulo-ambiente">
-      <h2 id="titulo-ambiente">Ambiente</h2>
-      <p>Temperatura: <strong id="temperatura">—</strong></p>
-      <p>Humedad: <strong id="humedad">—</strong></p>
-      <p id="estado-sensor" role="status">Esperando primera lectura del DHT22…</p>
-    </section>
-    <section aria-labelledby="titulo-historial">
+
+    <div class="tablero">
+      <section class="panel" aria-labelledby="titulo-ambiente">
+        <h2 id="titulo-ambiente">Ambiente</h2>
+        <dl class="lecturas" id="lecturas" data-estado="espera">
+          <div class="lectura">
+            <dt>Temperatura</dt>
+            <dd id="temperatura">—</dd>
+          </div>
+          <div class="lectura">
+            <dt>Humedad relativa</dt>
+            <dd id="humedad">—</dd>
+          </div>
+        </dl>
+        <p id="estado-sensor" class="estado" data-estado="espera" role="status">Esperando primera lectura del DHT22…</p>
+        <p class="nota">El sensor DHT22 envía una lectura cada 10 segundos. Si dejan de llegar, los últimos valores se marcan como antiguos.</p>
+      </section>
+
+      <section class="panel" aria-labelledby="titulo-controles">
+        <h2 id="titulo-controles">Controles</h2>
+        <div class="controles">
+          <div class="control">
+            <h3 id="titulo-led">LED</h3>
+            <p id="estado-led" class="estado" data-estado="desconocido" role="status">Esperando estado del Arduino…</p>
+            <button id="btn-led" type="button" aria-pressed="false" aria-describedby="estado-led" disabled>Esperando LED…</button>
+          </div>
+          <div class="control">
+            <h3 id="titulo-ventilador">Motor paso a paso</h3>
+            <p id="estado-ventilador" class="estado" data-estado="desconocido" role="status">Esperando estado del Arduino…</p>
+            <button id="btn-ventilador" type="button" aria-pressed="false" aria-describedby="estado-ventilador" disabled>Esperando motor…</button>
+            <p class="nota">ULN2003 en D8–D11, objetivo 15 RPM. La confirmación indica que el Arduino activó el control; no mide el giro real.</p>
+          </div>
+        </div>
+        <p class="nota">Puedes enviar órdenes en cuanto hay conexión con el broker, aunque el Arduino aún no haya respondido. El estado solo cambia cuando el Arduino lo confirma.</p>
+        <button id="btn-consultar" class="secundario" type="button" disabled>Consultar estado</button>
+      </section>
+    </div>
+
+    <section class="panel" aria-labelledby="titulo-historial">
       <h2 id="titulo-historial">Historial</h2>
-      <p id="estado-base-datos" role="status">Preparando historial…</p>
-      <p>Las mediciones llegan cada 10 segundos. Se muestra la hora de Chile: fecha del servidor al guardar, o fecha de recepción mientras está pendiente.</p>
-      <p id="resumen-guardado" role="status">Esperando registros.</p>
-      <div class="tabla-historial">
-        <table aria-labelledby="titulo-historial">
+      <p class="nota">Se guardan los cambios del LED y del motor informados por el Arduino y cada medición válida. Hora de Chile: fecha del servidor al guardar, o fecha de recepción mientras está pendiente.</p>
+      <div class="herramientas">
+        <div class="campo">
+          <label for="filtro-historial">Componente</label>
+          <select id="filtro-historial" aria-describedby="ayuda-filtro">
+            <option value="">Todos</option>
+            <option value="LED">LED</option>
+            <option value="ventilador">Motor</option>
+            <option value="DHT22">DHT22</option>
+          </select>
+        </div>
+        <p id="ayuda-filtro" class="ayuda">Filtra los últimos 100 registros disponibles; no consulta registros anteriores.</p>
+      </div>
+      <p id="resumen-guardado" role="status">Cargando historial…</p>
+      <div class="tabla-historial" tabindex="0" role="region" aria-label="Tabla del historial">
+        <table>
+          <caption class="solo-lectores">Registros del historial, del más reciente al más antiguo</caption>
           <thead><tr><th scope="col">Fecha</th><th scope="col">Sensor</th><th scope="col">Acción</th></tr></thead>
           <tbody id="filas-historial"></tbody>
         </table>
       </div>
     </section>
-    <section aria-labelledby="titulo-registro">
-      <h2 id="titulo-registro">Actividad de esta sesión</h2>
-      <p>Diagnóstico de conexión. Este registro temporal se borra al recargar.</p>
-      <pre id="registro" aria-label="Mensajes recientes"></pre>
-    </section>
-    <noscript>Activa JavaScript para conectar con el Arduino.</noscript>
+
+    <details class="panel diagnostico">
+      <summary>Diagnóstico de la sesión</summary>
+      <p class="nota">Mensajes enviados y recibidos por MQTT en esta pestaña. Este registro temporal se borra al recargar.</p>
+      <pre id="registro" translate="no" tabindex="0" aria-label="Mensajes recientes"></pre>
+    </details>
+    <noscript><p class="panel">Activa JavaScript para conectar con el Arduino.</p></noscript>
   </main>
+
+  <footer class="pie">
+    <p>Prototipo académico. Usa un broker MQTT público sin autenticación; no es un sistema de protección autónomo.</p>
+  </footer>
 
   <script src="https://unpkg.com/mqtt@5.10.4/dist/mqtt.min.js"></script>
   <script type="module" src="public/js/main.js"></script>

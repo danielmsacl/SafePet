@@ -1,4 +1,4 @@
-# PetSafe: primera prueba con Arduino UNO R4 WiFi
+# PetSafe: monitoreo y control con Arduino UNO R4 WiFi
 
 Esta etapa prueba botones, confirmaciones y DHT22, y prepara el historial
 automático en **Firebase Realtime Database**. Para probar los botones no hace
@@ -6,6 +6,9 @@ falta configurar Firebase. Para guardar, seguir [FIREBASE.md](FIREBASE.md).
 Mientras la configuración sea `null`, el historial es temporal y se marca como
 **sin guardar**. No se necesita botón Guardar: las acciones se registran al
 recibir el evento del Arduino y las mediciones llegan cada diez segundos.
+
+La organización de la página web (MVC + Broker) se explica en la
+[sección 6](#6-arquitectura-de-la-web-mvc--broker).
 
 ## 1. Programa que debe cargar el compañero
 
@@ -141,7 +144,7 @@ extra ni salto de línea. Todos los mensajes usan **retain=false**, **QoS 0**;
 no se guardan órdenes para ejecutarlas al reconectar. La web espera las respuestas
 del Arduino; el envío al broker no basta para confirmar una acción.
 
-Para cambiar el canal, editar `BASE_TOPIC` en `public/js/config.js` y en el `.ino`.
+Para cambiar el canal, editar `BASE_TOPIC` en `public/js/config/dispositivo.js` y en el `.ino`.
 Si agregan otra placa, usar otro prefijo y otro `mqttClient.setId(...)`.
 
 ## 4. Cómo probar la página
@@ -155,13 +158,14 @@ Si agregan otra placa, usar otro prefijo y otro `mqttClient.setId(...)`.
 3. Abrir la web. Primero conecta con MQTT, se suscribe y consulta el estado.
    Los botones se habilitan al conectar con MQTT, sin esperar al Arduino.
    El estado real solo se confirma cuando llega su respuesta.
-4. Pulsar **Prender led**. Debe mostrar `Esperando respuesta…`, prender el LED y
-   luego mostrar `Apagar led` y el estado confirmado. Repetir para apagar.
-5. Comprobar el orden IN1–IN4 y probar Prender/Apagar ventilador: debe girar
+4. Pulsar **Prender LED**. Debe mostrar `Orden enviada` y `Esperando respuesta…`,
+   prender el LED y luego mostrar `Apagar LED` y el estado confirmado. Repetir para apagar.
+5. Comprobar el orden IN1–IN4 y probar Prender/Apagar motor: debe girar
    el paso a paso y desactivar sus bobinas al apagar.
 6. Temperatura y humedad deben aparecer en web y LCD cada diez segundos.
-7. Desconectar el Arduino: después de unos 16 segundos la web indica estado
-   desconocido, pero permite enviar nuevas órdenes si MQTT sigue conectado.
+7. Desconectar el Arduino: después de unos 16 segundos el indicador **Arduino** pasa a
+   "Sin mensajes recientes" y los controles a estado desconocido, pero se pueden
+   enviar nuevas órdenes si el broker sigue conectado.
 8. Reconectar el Arduino: arranca con ambas salidas apagadas y la web debe
    recuperar su estado. Recargar la web también debe recuperar el estado actual.
 
@@ -186,21 +190,107 @@ una prueba supervisada de comunicación, no un sistema de protección autónomo.
 - El historial continuo requerirá un receptor permanente o envío directo desde
   el dispositivo. La pestaña abierta no debe ser su único recolector definitivo.
 
+## 6. Arquitectura de la web (MVC + Broker)
+
+La solución combina dos patrones con responsabilidades distintas:
+
+- **Broker (publicar/suscribir).** HiveMQ (`broker.hivemq.com`) es el intermediario
+  que recibe y distribuye los mensajes. **MQTT es el protocolo**; el broker es el
+  servicio. Arduino y la página no se conocen ni se conectan entre sí: ambos se
+  conectan al broker (Arduino por TCP 1883, la web por WebSocket seguro 8884) y
+  publican o se suscriben a los temas de la sección 3. A diferencia del "broker de
+  objetos" clásico, aquí no se invoca un servicio remoto con respuesta directa: el
+  broker reenvía mensajes a los suscriptores, y la respuesta del Arduino es otro
+  mensaje publicado en un tema de estado.
+- **MVC en la página.** Organiza el estado, las reglas, la presentación y la
+  coordinación dentro del navegador. La página reacciona a eventos (clics y
+  mensajes MQTT); por eso también tiene un **comportamiento dirigido por eventos**,
+  sin infraestructura adicional: el Arduino publica un evento solo cuando cambia
+  una salida y la web lo guarda en Firebase.
+
+No existe un backend propio. La página abierta recibe los mensajes MQTT y escribe
+en Firebase Realtime Database mediante su SDK web (servicio administrado; no hay
+funciones serverless propias).
+
+### Carpetas de `public/js/`
+
+| Carpeta | Responsabilidad |
+| --- | --- |
+| `config/` | Contrato con el dispositivo (`BASE_TOPIC`, URL del broker, actuadores, tiempos) y configuración web pública de Firebase. |
+| `models/` | Estado y reglas, sin DOM: `actuador.js` (estado confirmado, solicitado y orden pendiente), `mediciones.js` (única validación de rangos, datos antiguos), `dispositivo.js` (último contacto con el Arduino), `historial.js` (registros, estado de guardado, límite de 100, filtro local). |
+| `views/` | Dibujan el panel y el historial y entregan clics al controlador. No importan servicios ni modelos y no deciden reglas; contienen los textos visibles. |
+| `controllers/` | `panel-controlador.js` coordina MQTT, modelos, temporizadores y vista; `historial-controlador.js` conecta el modelo del historial con Firebase y su vista. Reciben servicios y vistas por parámetro. |
+| `services/` | `mqtt-client.js` (conexión al broker, suscripciones, publicación sin retención) y `firebase-db.js` (autenticación anónima, lectura de los últimos 100 y escritura). Sin DOM. |
+| `main.js` | Punto de entrada: crea una vez cada servicio, vista y controlador y los conecta. |
+
+`tests/arquitectura.test.js` comprueba estas dependencias (por ejemplo, que
+modelos y servicios no usen el DOM y que las vistas no importen servicios).
+
+### Recorrido de una medición
+
+1. El Arduino lee el DHT22 cada 10 s y publica `{"temperatura":…,"humedad":…}` en `…/sensores`.
+2. El broker HiveMQ lo entrega a la página suscrita (servicio MQTT).
+3. El controlador del panel pide al modelo `mediciones.js` que lo valide. Un mensaje inválido se descarta.
+4. La vista muestra los valores y la hora de recepción; el modelo `dispositivo.js` registra el contacto.
+5. El controlador entrega la medición al modelo del historial, que crea una fila **pendiente**
+   y llama al servicio Firebase.
+6. Firebase guarda en `usuarios/UID/registros/ID` con fecha del servidor. Solo su
+   confirmación cambia la fila a **guardado**; un rechazo la deja en **error: no guardado**.
+7. Si pasan más de 16 s sin lecturas, los últimos valores se marcan como antiguos.
+
+### Recorrido de una orden
+
+1. El usuario pulsa **Prender LED**. La vista avisa al controlador.
+2. El modelo `actuador.js` calcula la orden (`prender_led`) y la deja pendiente.
+3. El servicio MQTT la publica en `…/led` (QoS 0, sin retención). La vista muestra
+   **Orden enviada**: todavía no es un control confirmado.
+4. El broker la entrega al Arduino, que cambia la salida y publica `led_prendido` en
+   `…/led/estado` y, por ser un cambio real, en `…/eventos`.
+5. El estado confirma la orden en el modelo (**confirmado por Arduino**). El evento
+   genera un registro en el historial y su guardado en Firebase se muestra aparte.
+6. Sin respuesta en 7 s, la orden vence y el estado queda desconocido, sin suponer
+   el resultado. Los estados periódicos y las consultas no crean registros.
+
+### Ejecutar y probar la web
+
+- Pruebas: `npm test` (Node.js 20 o superior, sin instalar dependencias). Simulan
+  transporte, DOM, reloj y SDK de Firebase.
+- Página local: servir la carpeta del repositorio por HTTP (por ejemplo, Live Server
+  de VS Code) y abrir `index.html`. No usar `file://`, porque usa módulos JavaScript.
+  Una página local se conecta al broker y a Firebase reales: si el Arduino está
+  encendido, los botones lo accionan.
+- Publicación: GitHub Pages sirve la raíz de la rama configurada. Todas las rutas
+  son relativas; basta con commit y push y esperar el despliegue.
+
+### Limitaciones y evolución futura
+
+- La pestaña abierta es el único recolector: si se cierra, se pierden los mensajes
+  y escrituras pendientes. Un historial continuo requiere un receptor permanente o
+  envío directo desde el dispositivo.
+- Dos clientes (dos pestañas, o la web y una futura app) que escriban los mismos
+  eventos duplicarían registros: no hay identificador de mensaje ni deduplicación.
+- El UID anónimo pertenece a este navegador. Una app móvil obtendrá otro UID, por lo
+  que compartir el proyecto Firebase **no basta** para ver el mismo historial; haría
+  falta vincular cuentas o cambiar el modelo de acceso.
+- Para una app futura se pueden reutilizar `config/`, `models/` y los servicios; las
+  vistas son específicas de esta página. Ninguna de estas decisiones cambia en esta etapa.
+
 ## Verificación de software
 
 Con Node.js instalado: `npm test` (sin instalar dependencias). Las pruebas simulan
 el transporte y el tiempo para verificar confirmaciones, desconexiones, mensajes
-inválidos y expiración. No sustituyen compilar el sketch con las bibliotecas del
-Arduino IDE ni verificar el montaje físico.
+inválidos, expiración, historial y dependencias entre capas. No sustituyen compilar
+el sketch con las bibliotecas del Arduino IDE ni verificar el montaje físico.
 
-Validación realizada: **18 pruebas JavaScript aprobadas** y sketch compilado
+Validación de la reorganización MVC: **31 pruebas JavaScript aprobadas**, más
+pruebas de navegador con MQTT y Firebase **simulados** (carga sin errores, contrato
+MQTT, reconexión, datos antiguos, guardado/error, filtro, teclado, escritorio y móvil).
+El firmware no cambió en esta etapa. En la etapa anterior el sketch se compiló
 correctamente para `arduino:renesas_uno:unor4wifi`, con el núcleo UNO R4 1.6.0,
 ArduinoMqttClient 0.1.8, DHT sensor library 1.4.7, Adafruit Unified Sensor 1.1.15
-y hd44780 1.3.2.
-Se compiló con credenciales ficticias, sin subirlo a una placa. Las pruebas de
-Firebase usan un SDK simulado: verifican las rutas, fechas y confirmaciones, no
-una base real ni la aplicación de sus reglas. La prueba física, la conexión
-completa web–broker–Arduino y la validación en un proyecto Firebase siguen pendientes.
+y hd44780 1.3.2, con credenciales ficticias y sin subirlo a una placa. La prueba
+física, la conexión completa web–broker–Arduino y la validación en un proyecto
+Firebase real siguen pendientes.
 
 ## Referencias
 

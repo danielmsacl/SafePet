@@ -1,4 +1,7 @@
-import { BASE_TOPIC } from '../config.js';
+import { BASE_TOPIC } from '../config/dispositivo.js';
+
+// Servicio de persistencia: autenticación anónima, lectura y escritura en Realtime Database.
+// Informa estados con códigos; la vista decide cómo presentarlos.
 
 const cargarSDK = () => Promise.all([
   import('https://www.gstatic.com/firebasejs/13.2.0/firebase-app.js'),
@@ -13,9 +16,9 @@ export function crearFirebase(config, { alEstado = () => {}, alDatos = () => {} 
       if (preparada) return preparada;
       preparada = (async () => {
         if (!config?.apiKey || !config?.databaseURL || !config?.projectId || !config?.appId) {
-          throw new Error('Completa firebase-config.js con la configuración web de Firebase.');
+          throw new Error('Completa config/firebase.js con la configuración web de Firebase.');
         }
-        alEstado('Conectando con Firebase…');
+        alEstado('conectando');
         const [appSDK, authSDK, dbSDK] = await cargar();
         const app = appSDK.initializeApp(config);
         const auth = authSDK.getAuth(app);
@@ -25,15 +28,14 @@ export function crearFirebase(config, { alEstado = () => {}, alDatos = () => {} 
         const db = dbSDK.getDatabase(app);
         const ruta = `usuarios/${usuario.uid}/registros`;
         dbSDK.onValue(dbSDK.ref(db, '.info/connected'), (snap) => {
-          alEstado(snap.val() ? 'Firebase conectado. Registro automático activo.'
-            : 'Firebase sin conexión. No cierres la pestaña si hay registros pendientes.');
+          alEstado(snap.val() ? 'conectado' : 'sin_conexion');
         });
         dbSDK.onValue(dbSDK.query(dbSDK.ref(db, ruta), dbSDK.orderByChild('fecha'), dbSDK.limitToLast(100)),
           (snap) => {
             const datos = [];
             snap.forEach((child) => datos.push({ ...child.val(), id: child.key }));
             alDatos(datos);
-          }, () => alEstado('No se pudo leer el historial. Revisa las reglas de Firebase.'));
+          }, () => alEstado('error_lectura'));
         return { dbSDK, db, ruta };
       })();
       return preparada;

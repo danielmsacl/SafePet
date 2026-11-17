@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { crearFirebase } from '../public/js/model/firebase-db.js';
-import { BASE_TOPIC } from '../public/js/config.js';
+import { crearFirebase } from '../public/js/services/firebase-db.js';
+import { BASE_TOPIC } from '../public/js/config/dispositivo.js';
 
 test('configuración ausente falla sin cargar SDK ni simular un guardado', async () => {
   let cargado = false;

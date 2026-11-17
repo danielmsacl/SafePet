@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { setImmediate } from 'node:timers/promises';
-import { crearHistorial } from '../public/js/model/historial.js';
+import { crearHistorial } from '../public/js/models/historial.js';
 
 test('sin configurar no simula guardado y mantiene números en las mediciones', () => {
   let filas, id = 0;

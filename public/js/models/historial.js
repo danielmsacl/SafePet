@@ -1,3 +1,7 @@
+import { medicionValida } from './mediciones.js';
+
+// Modelo del historial: convierte eventos y mediciones en registros, sigue su guardado
+// (pendiente, guardado, error o sin configurar) y combina los registros recuperados.
 const EVENTOS = new Map([
   ['led_prendido', { sensor: 'LED', accion: 'encendido' }],
   ['led_apagado', { sensor: 'LED', accion: 'apagado' }],
@@ -33,9 +37,9 @@ export function crearHistorial({ guardar = null, alCambiar = () => {},
       const datos = EVENTOS.get(mensaje);
       if (datos) agregar(datos);
     },
-    medicion({ temperatura, humedad }) {
-      if (!Number.isFinite(temperatura) || !Number.isFinite(humedad)
-        || temperatura < -40 || temperatura > 80 || humedad < 0 || humedad > 100) return;
+    medicion(datos) {
+      if (!medicionValida(datos)) return;
+      const { temperatura, humedad } = datos;
       agregar({ sensor: 'DHT22', accion: 'lectura', temperatura, humedad });
     },
     cargar(registros) {
@@ -49,4 +53,16 @@ export function crearHistorial({ guardar = null, alCambiar = () => {},
       limitar(); notificar();
     },
   };
+}
+
+// Conteo del estado de guardado de los registros visibles.
+export function resumirGuardado(filas) {
+  const contar = (tipo) => filas.filter((fila) => fila.estado === tipo).length;
+  return { guardados: contar('guardado'), pendientes: contar('pendiente'),
+    sinGuardar: contar('error') + contar('sin_configurar') };
+}
+
+// Filtro local sobre los registros ya cargados (como máximo los últimos 100). No consulta Firebase.
+export function filtrarPorSensor(filas, sensor) {
+  return sensor ? filas.filter((fila) => fila.sensor === sensor) : filas;
 }
