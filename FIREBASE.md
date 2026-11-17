@@ -101,6 +101,10 @@ marcan **error: no guardado**; no se presentan como datos almacenados.
 - La identidad anónima persiste en ese navegador. Otro navegador o borrar sus
   datos crea otra identidad y otro historial. Más adelante se puede vincular a
   una cuenta para compartir el historial entre dispositivos.
+- La app Android usa la misma configuración web y el mismo SDK JavaScript (sin
+  SDK nativo ni `google-services.json`), pero inicia su propia sesión anónima:
+  tendrá otro UID y su propio historial. Si web y app están abiertas a la vez,
+  cada una guarda su copia del mismo evento. Ver README, sección 7.
 - Mantener **una pestaña recolectora abierta**. Varias pestañas/dispositivos
   registrando los mismos mensajes crearían duplicados. Se evitan duplicados de
   los estados periódicos, no existe deduplicación entre varios recolectores.

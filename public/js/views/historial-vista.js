@@ -4,9 +4,10 @@ const ESTADOS_BASE = {
   conectando: ['espera', 'Conectando con Firebase…'],
   // La conexión no prueba que una escritura fue aceptada: cada fila muestra su propio guardado.
   conectado: ['ok', 'Conexión activa. Cada registro indica si ya fue guardado.'],
-  sin_conexion: ['aviso', 'Sin conexión con Firebase. No cierres la pestaña si hay registros pendientes.'],
+  sin_conexion: ['aviso', 'Sin conexión con Firebase. No cierres la página ni la app si hay registros pendientes.'],
   error_lectura: ['error', 'No se pudo leer el historial. Revisa las reglas de Firebase.'],
-  error_inicio: ['error', 'No se pudo iniciar Firebase. Revisa la configuración, la autenticación anónima y las reglas.'],
+  error_carga: ['error', 'No se pudo cargar Firebase. Revisa la conexión a Internet y vuelve a abrir la página o la app.'],
+  error_inicio: ['error','No se pudo iniciar Firebase. Revisa la configuración, la autenticación anónima y las reglas.'],
   sin_configurar: ['aviso', 'Firebase aún no está configurado. Esta vista es temporal: NO se está guardando en la base de datos.'],
 };
 

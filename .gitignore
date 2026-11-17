@@ -1,2 +1,5 @@
 arduino/**/arduino_secrets.h
 node_modules/
+
+# Recursos web generados para Capacitor (npm run web:preparar)
+www/

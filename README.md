@@ -221,7 +221,8 @@ funciones serverless propias).
 | `views/` | Dibujan el panel y el historial y entregan clics al controlador. No importan servicios ni modelos y no deciden reglas; contienen los textos visibles. |
 | `controllers/` | `panel-controlador.js` coordina MQTT, modelos, temporizadores y vista; `historial-controlador.js` conecta el modelo del historial con Firebase y su vista. Reciben servicios y vistas por parámetro. |
 | `services/` | `mqtt-client.js` (conexión al broker, suscripciones, publicación sin retención) y `firebase-db.js` (autenticación anónima, lectura de los últimos 100 y escritura). Sin DOM. |
-| `main.js` | Punto de entrada: crea una vez cada servicio, vista y controlador y los conecta. |
+| `plataforma/` | `android.js`: detecta la app Capacitor y avisa cuando vuelve al primer plano. Sin reglas ni servicios; en el navegador no actúa. |
+| `main.js` | Punto de entrada: crea una vez cada servicio, vista y controlador y los conecta. En la app conecta además el aviso de primer plano. |
 
 `tests/arquitectura.test.js` comprueba estas dependencias (por ejemplo, que
 modelos y servicios no usen el DOM y que las vistas no importen servicios).
@@ -253,7 +254,7 @@ modelos y servicios no usen el DOM y que las vistas no importen servicios).
 
 ### Ejecutar y probar la web
 
-- Pruebas: `npm test` (Node.js 20 o superior, sin instalar dependencias). Simulan
+- Pruebas: `npm test` (Node.js 22 o superior; no requiere `npm install`). Simulan
   transporte, DOM, reloj y SDK de Firebase.
 - Página local: servir la carpeta del repositorio por HTTP (por ejemplo, Live Server
   de VS Code) y abrir `index.html`. No usar `file://`, porque usa módulos JavaScript.
@@ -264,16 +265,95 @@ modelos y servicios no usen el DOM y que las vistas no importen servicios).
 
 ### Limitaciones y evolución futura
 
-- La pestaña abierta es el único recolector: si se cierra, se pierden los mensajes
-  y escrituras pendientes. Un historial continuo requiere un receptor permanente o
-  envío directo desde el dispositivo.
-- Dos clientes (dos pestañas, o la web y una futura app) que escriban los mismos
-  eventos duplicarían registros: no hay identificador de mensaje ni deduplicación.
-- El UID anónimo pertenece a este navegador. Una app móvil obtendrá otro UID, por lo
-  que compartir el proyecto Firebase **no basta** para ver el mismo historial; haría
-  falta vincular cuentas o cambiar el modelo de acceso.
-- Para una app futura se pueden reutilizar `config/`, `models/` y los servicios; las
-  vistas son específicas de esta página. Ninguna de estas decisiones cambia en esta etapa.
+- La pestaña o la app abierta es el único recolector: si se cierra o Android la
+  suspende, se pierden los mensajes y escrituras pendientes. Un historial continuo
+  requiere un receptor permanente o envío directo desde el dispositivo.
+- La web y la app (o dos pestañas) que estén abiertas a la vez guardan **cada una**
+  su copia del mismo evento, en historiales separados por UID. No hay identificador
+  de mensaje ni deduplicación; no se deduplica por temperatura, humedad o segundos
+  de recepción, porque eliminaría lecturas legítimas.
+- El UID anónimo pertenece a ese navegador o a esa instalación de la app. Compartir
+  el proyecto Firebase **no basta** para ver el mismo historial (ver sección 7).
+
+## 7. App Android (Capacitor)
+
+La app es híbrida: empaqueta en el APK la misma interfaz (HTML, CSS y JavaScript de
+este repositorio) y la muestra en el WebView de Android. No carga GitHub Pages ni un
+servidor local. No hay otra copia de la lógica: MVC, Broker, temas, mensajes,
+tiempos, rutas de Firebase y reglas son los de la web.
+
+- Identificador `cl.petsafe.app`, nombre visible **PetSafe**, Capacitor 8.6.2,
+  minSdk 24, targetSdk/compileSdk 36. Único permiso: Internet. Tráfico solo por
+  HTTPS/WSS; no se habilita tráfico sin cifrar.
+- `www/` es una carpeta **generada** por `scripts/preparar-web.mjs` con una lista
+  explícita de archivos (18, unos 82 KB). No se versiona. Firmware, pruebas,
+  documentos, herramientas y dependencias no entran en el APK.
+- Diferencias de la app, aisladas en `plataforma/android.js` y `main.js`:
+  - clientId MQTT propio por instalación y apertura (`petsafe-android-xxxxxxxx`); la web usa
+    `petsafe-web-xxxxxxxx`. Así una instancia no expulsa a otra del broker.
+  - Al volver al primer plano se revisa la vigencia de los datos, se comprueba la
+    conexión y se consulta el estado real. Tras más de 16 s en segundo plano se
+    reinicia la conexión del mismo cliente (sin reenviar órdenes). Si al abrir no
+    había Internet y no cargó la biblioteca MQTT, la app se recarga al volver.
+  - Áreas seguras: la cabecera azul pasa bajo la barra de estado (`viewport-fit=cover`).
+- No hay servicio en segundo plano ni notificaciones: minimizada o cerrada, Android
+  puede suspenderla y **no** se garantiza recibir MQTT ni guardar en Firebase.
+- mqtt.js y el SDK de Firebase se descargan de sus CDN: la app necesita Internet
+  (también para el broker y Firebase). Sin conexión muestra un error claro. El
+  WebView puede reutilizar una copia en caché de esas bibliotecas.
+- Botón Atrás: cierra la app (no hay navegación interna). Al girar la pantalla no se
+  recarga ni se duplican conexiones.
+
+### Requisitos y compilación
+
+Probado con Android Studio 2026.1 (JDK 25 incluido), Android SDK 36 y Gradle 9.5.0.
+La plantilla de Capacitor trae Gradle 8.14.3, que no funciona con JDK 25. Por eso
+el wrapper usa Gradle 9.5.0 y se mantiene el Android Gradle Plugin 8.13.0 de
+Capacitor. Si Android Studio ofrece actualizar el plugin, no es necesario para esta etapa.
+
+```bash
+npm install
+npm run android:apk
+```
+
+`android:apk` prepara `www/`, sincroniza Android (`cap sync`) y compila el APK de
+depuración en `android/app/build/outputs/apk/debug/app-debug.apk`. Usa `JAVA_HOME`
+y `ANDROID_HOME` o, si faltan, el JDK de Android Studio y el SDK en su ruta habitual.
+Para abrir el proyecto en Android Studio, en un clon nuevo ejecutar primero
+`npm install` y `npm run android:sync`: generan `www/`, la copia web dentro de
+`android/` y los módulos de Capacitor que Gradle necesita y que no se versionan.
+Luego `npm run android:abrir` (o abrir la carpeta `android/`) y usar
+**Build → Build APK(s)** o **Run**.
+
+**Cada cambio en la interfaz web requiere volver a ejecutar `npm run android:sync`
+(o `android:apk`) antes de compilar otra APK.** Si no, el APK conserva la copia anterior.
+
+Instalar en un teléfono: activar *Opciones de desarrollador → Depuración USB*,
+conectarlo y ejecutar `adb install -r android/app/build/outputs/apk/debug/app-debug.apk`,
+o copiar el APK al teléfono y abrirlo permitiendo "instalar apps desconocidas".
+El APK de depuración está firmado con la clave de depuración local: sirve para la
+demostración, no para publicarlo en Google Play.
+
+### Historial de la app frente al de la web
+
+La app inicia su propia sesión anónima: normalmente tendrá **otro UID** y, por lo
+tanto, otro historial (`usuarios/{uid}/registros`) dentro del mismo proyecto Firebase.
+No se copian identidades ni tokens del navegador. La sesión persiste al cerrar y
+reabrir la app, pero se pierde si se borran sus datos o se desinstala (la copia de
+seguridad automática está desactivada para no trasladar la sesión a otro equipo).
+
+Para compartir **un único historial** entre web y app haría falta, como mínimo:
+
+1. Una identidad común: cuentas reales (por ejemplo, correo o Google) vinculadas a
+   las sesiones anónimas (`linkWithCredential`), o un "hogar" compartido al que
+   pertenezcan varios UID.
+2. Cambiar la ruta y las reglas de Firebase para que varios usuarios autorizados lean
+   el mismo historial. Hoy las reglas lo impiden a propósito.
+3. Un **único recolector**: un servicio permanente que escriba los eventos del broker
+   (o el Arduino escribiendo directamente), en lugar de cada pestaña o app abierta.
+   Así se evitan las copias duplicadas y los huecos cuando nadie tiene la app abierta.
+4. Opcionalmente, un identificador por mensaje desde el Arduino, para deduplicar con
+   seguridad si alguna vez hay más de un recolector.
 
 ## Verificación de software
 
@@ -282,10 +362,15 @@ el transporte y el tiempo para verificar confirmaciones, desconexiones, mensajes
 inválidos, expiración, historial y dependencias entre capas. No sustituyen compilar
 el sketch con las bibliotecas del Arduino IDE ni verificar el montaje físico.
 
-Validación de la reorganización MVC: **31 pruebas JavaScript aprobadas**, más
-pruebas de navegador con MQTT y Firebase **simulados** (carga sin errores, contrato
-MQTT, reconexión, datos antiguos, guardado/error, filtro, teclado, escritorio y móvil).
-El firmware no cambió en esta etapa. En la etapa anterior el sketch se compiló
+Validación actual: **37 pruebas JavaScript aprobadas** (incluyen la adaptación
+Android y el contenido de `www/`), más pruebas de navegador con MQTT y Firebase
+**simulados** sobre la raíz y sobre `www/`. El APK de depuración se compiló e instaló
+en un emulador Pixel 7 (Android 17 beta). Allí, con el broker y Firebase **reales**,
+se comprobaron: apertura sin pantalla en blanco, conexión al broker, sesión anónima,
+lectura del historial, persistencia del UID al reabrir, falta de Internet,
+minimizar y volver, giro y botón Atrás. No se pulsaron controles ni había Arduino
+conectado, por lo que el guardado real de un evento sigue pendiente.
+El firmware no cambió. En la etapa anterior el sketch se compiló
 correctamente para `arduino:renesas_uno:unor4wifi`, con el núcleo UNO R4 1.6.0,
 ArduinoMqttClient 0.1.8, DHT sensor library 1.4.7, Adafruit Unified Sensor 1.1.15
 y hd44780 1.3.2, con credenciales ficticias y sin subirlo a una placa. La prueba

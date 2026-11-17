@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Pantalla de inicio para Android 7–11: fondo azul PetSafe y emblema centrado sin deformar.
+     En Android 12 o superior el sistema usa windowSplashScreen* de styles.xml. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/petsafe_azul" />
+    <item
+        android:width="144dp"
+        android:height="144dp"
+        android:gravity="center"
+        android:drawable="@drawable/splash_emblema" />
+</layer-list>

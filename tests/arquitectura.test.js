@@ -20,6 +20,9 @@ test('MVC: modelos y servicios no tocan el DOM; vistas no usan servicios ni mode
     // Los textos pueden nombrar Firebase o MQTT; lo prohibido es usar sus clientes.
     assert.doesNotMatch(codigo, /globalThis\.mqtt|firebasejs|import\(|\.publish\(|\.subscribe\(/, archivo);
   }
+  for (const { archivo, codigo } of fuentes('plataforma')) {
+    assert.deepEqual(importaciones(codigo), [], `${archivo}: la adaptación de plataforma no contiene reglas ni servicios`);
+  }
   for (const { archivo, codigo } of fuentes('controllers')) {
     assert.doesNotMatch(codigo, /\bdocument\b|getElementById/, archivo);
     assert.ok(importaciones(codigo).every((ruta) => !/services|views/.test(ruta)), `${archivo} recibe servicios y vistas por inyección`);
@@ -31,7 +34,7 @@ test('rutas relativas: index.html y módulos no usan rutas absolutas del sitio',
   for (const [, ruta] of html.matchAll(/(?:src|href)="([^"]+)"/g)) {
     assert.ok(/^https:\/\//.test(ruta) || !ruta.startsWith('/'), ruta);
   }
-  for (const carpeta of ['models', 'views', 'controllers', 'services', 'config']) {
+  for (const carpeta of ['models', 'views', 'controllers', 'services', 'config', 'plataforma']) {
     for (const { archivo, codigo } of fuentes(carpeta)) {
       for (const ruta of importaciones(codigo)) assert.ok(ruta.startsWith('.'), `${archivo}: ${ruta}`);
     }

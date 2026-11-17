@@ -24,7 +24,14 @@ export function iniciarControladorHistorial({ vista, crearBase = null }) {
   });
   vista.alFiltrar((valor) => { sensor = valor; dibujar(); });
   // Con Firebase, el estado vacío se muestra cuando llega la primera respuesta (aunque esté vacía).
-  if (base) base.conectar().catch(() => { vista.estadoBase('error_inicio'); dibujar(); });
-  else { vista.estadoBase('sin_configurar'); dibujar(); }
+  if (base) {
+    base.conectar().catch((error) => {
+      vista.estadoBase(error?.codigo === 'error_carga' ? 'error_carga' : 'error_inicio');
+      dibujar();
+    });
+  } else {
+    vista.estadoBase('sin_configurar');
+    dibujar();
+  }
   return historial;
 }

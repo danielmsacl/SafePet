@@ -1,0 +1,16 @@
+{
+  "appId": "cl.petsafe.app",
+  "appName": "PetSafe",
+  "webDir": "www",
+  "backgroundColor": "#F3F7F9",
+  "android": {
+    "allowMixedContent": false
+  },
+  "plugins": {
+    "SystemBars": {
+      "insetsHandling": "css",
+      "style": "DARK",
+      "initialViewportFitValueHint": "cover"
+    }
+  }
+}

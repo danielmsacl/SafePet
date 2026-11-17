@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">PetSafe</string>
+    <string name="title_activity_main">PetSafe</string>
+    <string name="package_name">cl.petsafe.app</string>
+    <string name="custom_url_scheme">cl.petsafe.app</string>
+</resources>

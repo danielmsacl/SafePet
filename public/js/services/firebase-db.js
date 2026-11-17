@@ -19,7 +19,10 @@ export function crearFirebase(config, { alEstado = () => {}, alDatos = () => {} 
           throw new Error('Completa config/firebase.js con la configuración web de Firebase.');
         }
         alEstado('conectando');
-        const [appSDK, authSDK, dbSDK] = await cargar();
+        // El SDK se descarga desde el CDN de Google: sin Internet falla aquí, no en las reglas.
+        const [appSDK, authSDK, dbSDK] = await cargar().catch((error) => {
+          throw Object.assign(new Error('No se pudo descargar el SDK de Firebase.', { cause: error }), { codigo: 'error_carga' });
+        });
         const app = appSDK.initializeApp(config);
         const auth = authSDK.getAuth(app);
         await authSDK.setPersistence(auth, authSDK.browserLocalPersistence);

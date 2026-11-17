@@ -205,3 +205,25 @@ pre {
 
 h1, h2, h3 { text-wrap: balance; }
 button, select, summary, a { touch-action: manipulation; }
+
+/* Áreas seguras de la app Android (viewport-fit=cover). Capacitor entrega los márgenes de las
+   barras del sistema con env() o, en WebView antiguos, con --safe-area-inset-*. En un navegador
+   de escritorio valen 0 y nada cambia. */
+:root {
+  --sa-arriba: max(env(safe-area-inset-top, 0px), var(--safe-area-inset-top, 0px));
+  --sa-abajo: max(env(safe-area-inset-bottom, 0px), var(--safe-area-inset-bottom, 0px));
+  --sa-izq: max(env(safe-area-inset-left, 0px), var(--safe-area-inset-left, 0px));
+  --sa-der: max(env(safe-area-inset-right, 0px), var(--safe-area-inset-right, 0px));
+}
+body { padding: 0 var(--sa-der) var(--sa-abajo) var(--sa-izq); }
+/* La cabecera azul llega bajo la barra de estado y bajo los recortes laterales. */
+.cabecera {
+  margin: 0 calc(-1 * var(--sa-der)) 0 calc(-1 * var(--sa-izq));
+  padding: var(--sa-arriba) var(--sa-der) 0 var(--sa-izq);
+}
+/* Franja fija bajo la barra de estado: sus iconos claros siguen legibles al desplazar. */
+body::before {
+  content: ""; position: fixed; inset: 0 0 auto 0; z-index: 30;
+  height: var(--sa-arriba); background: var(--azul); pointer-events: none;
+}
+.saltar:focus { top: calc(12px + var(--sa-arriba)); }

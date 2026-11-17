@@ -119,13 +119,29 @@ export function iniciarControladorPanel({ cliente, vista, historial = null,
   mostrarEnlace();
   cliente.conectar(cambiarConexion);
 
-  // Un único temporizador periódico detecta silencio del Arduino y lecturas antiguas.
-  reloj.setInterval(() => {
+  // Detecta silencio del Arduino y lecturas antiguas.
+  function revisarVigencia() {
     const instante = ahora();
     for (const actuador of actuadores) {
       if (actuador.sinRespuesta(instante, TIEMPO_SIN_DATOS_MS)) desconocido(actuador, 'sin_respuesta');
     }
     if (ambiente.esAntigua(instante, TIEMPO_SIN_DATOS_MS)) vista.medicionAntigua();
     if (conectado && enlace.estado(instante, TIEMPO_SIN_DATOS_MS) !== estadoEnlace) mostrarEnlace();
-  }, 1000);
+  }
+
+  // Un único temporizador periódico. Mientras la app está minimizada Android puede pausarlo.
+  reloj.setInterval(revisarVigencia, 1000);
+
+  return {
+    // Al volver al primer plano (app Android): actualiza la vigencia de los datos sin esperar
+    // al temporizador, comprueba la conexión y consulta el estado real del Arduino.
+    // Una pausa más larga que TIEMPO_SIN_DATOS_MS reinicia la conexión del mismo cliente.
+    reanudar(msOculta) {
+      revisarVigencia();
+      const resultado = cliente.reanudar(msOculta > TIEMPO_SIN_DATOS_MS);
+      registrar(`De vuelta en primer plano tras ${Math.round(msOculta / 1000)} s (${resultado})`);
+      if (resultado === 'conectado') pedirEstado(); // al reconectar, la consulta se envía sola
+      return resultado;
+    },
+  };
 }

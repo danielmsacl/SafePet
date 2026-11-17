@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Colores de PetSafe (iguales a public/css/styles.css). -->
+    <color name="petsafe_azul">#082B40</color>
+    <color name="petsafe_turquesa">#18CDBE</color>
+    <color name="petsafe_fondo">#F3F7F9</color>
+    <color name="colorPrimary">#082B40</color>
+    <color name="colorPrimaryDark">#082B40</color>
+    <color name="colorAccent">#0A6E67</color>
+</resources>

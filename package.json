@@ -2,5 +2,21 @@
   "name": "petsafe",
   "private": true,
   "type": "module",
-  "scripts": { "test": "node --test" }
+  "scripts": {
+    "test": "node --test",
+    "web:preparar": "node scripts/preparar-web.mjs",
+    "android:sync": "npm run web:preparar && cap sync android",
+    "android:abrir": "cap open android",
+    "android:apk": "npm run android:sync && node scripts/compilar-apk.mjs"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.6.2",
+    "@capacitor/core": "8.6.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.6.2"
+  },
+  "engines": {
+    "node": ">=22"
+  }
 }
